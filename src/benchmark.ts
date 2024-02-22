@@ -9,5 +9,7 @@ export async function benchmark(
 
   const end = performance.now();
 
-  console.log(`\t[${tag}] - ${end - start} (${n / ((end - start) / 1000)})`);
+  console.log(
+    `\t[${tag}] - ${end - start} (${Math.round(n / (end - start))} ops/ms)`,
+  );
 }

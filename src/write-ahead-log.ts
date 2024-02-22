@@ -13,11 +13,9 @@ const LogEntryProtoBufJs = new protobufjs.Type('LogEntry')
   .add(new protobufjs.Field('logSequenceNumber', 3, 'string'));
 
 export class WriteAheadLog {
-  protected buffer: Buffer | null = null;
+  protected readonly buffer: Buffer;
 
-  // protected readonly buffer: Buffer;
-
-  // protected readonly bufferOffset: number = null;
+  protected bufferOffset: number = 0;
 
   protected fileDescriptor: number | null = null;
 
@@ -30,7 +28,9 @@ export class WriteAheadLog {
     protected filename: string,
     protected logSequenceNumber: number = 0,
     protected bufferSize: number = 10 * 1024, // 10 kilobytes
-  ) {}
+  ) {
+    this.buffer = Buffer.alloc(this.bufferSize);
+  }
 
   public async close(): Promise<void> {
     if (!this.fileDescriptor) {
@@ -53,23 +53,17 @@ export class WriteAheadLog {
 
     await this.mutex.acquire();
 
-    const buffer: Buffer = this.buffer;
+    const buffer: Buffer = Buffer.alloc(this.bufferOffset);
 
-    this.buffer = null;
+    this.buffer.copy(buffer, 0, 0, this.bufferOffset);
 
-    try {
-      this.offset += await FileHelper.write(
-        this.fileDescriptor,
-        buffer,
-        this.offset,
-      );
-    } catch {
-      if (this.buffer) {
-        this.buffer = Buffer.concat([buffer, this.buffer]);
-      } else {
-        this.buffer = buffer;
-      }
-    }
+    this.bufferOffset = 0;
+
+    this.offset += await FileHelper.write(
+      this.fileDescriptor,
+      buffer,
+      this.offset,
+    );
 
     await this.mutex.release();
   }
@@ -180,19 +174,16 @@ export class WriteAheadLog {
       bufferLogEntry,
     ]);
 
-    if (!this.buffer) {
-      this.buffer = buffer;
-
-      return this.logSequenceNumber;
+    if (this.bufferOffset + buffer.length > this.buffer.length) {
+      await this.flush();
     }
 
-    this.buffer = Buffer.concat([this.buffer, buffer]);
-
-    if (this.buffer.length < this.bufferSize) {
-      return this.logSequenceNumber;
-    }
-
-    await this.flush();
+    this.bufferOffset += buffer.copy(
+      this.buffer,
+      this.bufferOffset,
+      0,
+      buffer.length,
+    );
 
     return this.logSequenceNumber;
   }
