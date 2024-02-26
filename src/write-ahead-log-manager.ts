@@ -1,14 +1,15 @@
 import * as fs from 'fs';
-import { WriteAheadLog } from './write-ahead-log';
+import { WriteAheadLogWriter } from './write-ahead-log';
 import { LogEntry } from './log-entry';
 import { StringHelper } from './string.helper';
+import { WriteAheadLogReader } from './write-ahead-log-reader';
 
 export class WriteAheadLogManager {
   protected index: number = 0;
 
   protected logSequenceNumber: number = 0;
 
-  protected writeAheadLog: WriteAheadLog | null = null;
+  protected writeAheadLogWriter: WriteAheadLogWriter | null = null;
 
   constructor(
     protected directory: string,
@@ -17,100 +18,92 @@ export class WriteAheadLogManager {
   ) {}
 
   public async close(): Promise<void> {
-    if (this.writeAheadLog) {
-      await this.writeAheadLog.close();
+    if (this.writeAheadLogWriter) {
+      await this.writeAheadLogWriter.close();
     }
 
     this.index = 0;
 
     this.logSequenceNumber = 0;
 
-    this.writeAheadLog = null;
-  }
-
-  protected static getIndexFromFilename(filename: string): number {
-    const regExp: RegExp = new RegExp(/^.+\-(\d{3})\.data$/);
-
-    const regExpExecArray: RegExpExecArray | null = regExp.exec(filename);
-
-    if (!regExpExecArray) {
-      throw new Error(`unable to get index from filename: ${filename}`);
-    }
-
-    return parseInt(regExpExecArray[1]);
+    this.writeAheadLogWriter = null;
   }
 
   public async open(): Promise<void> {
     const filenames: Array<string> = fs.readdirSync(this.directory);
+
+    const writeAheadLogReaders: Array<WriteAheadLogReader> = [];
 
     for (const filename of filenames) {
       if (filename.startsWith('.')) {
         continue;
       }
 
-      const index: number = WriteAheadLogManager.getIndexFromFilename(filename);
-
-      if (this.index === null || this.index < index) {
-        this.index = index;
-
-        this.writeAheadLog = new WriteAheadLog(this.directory, filename, 0);
-      }
+      writeAheadLogReaders.push(
+        new WriteAheadLogReader(this.directory, filename),
+      );
     }
 
-    if (this.writeAheadLog) {
-      const logEntries: Array<LogEntry> = await this.writeAheadLog.read();
+    if (writeAheadLogReaders.length) {
+      const item = writeAheadLogReaders.sort((a, b) => b.index - a.index)[0];
+
+      const logEntries: Array<LogEntry> = await item.writeAheadLogReader.read();
+
+      this.index = item.index;
 
       this.logSequenceNumber = logEntries.length
         ? parseInt(logEntries[logEntries.length - 1].logSequenceNumber)
         : 0;
 
-      this.writeAheadLog.setLogSequenceNumber(this.logSequenceNumber);
+      this.writeAheadLogWriter = new WriteAheadLogWriter(
+        this.directory,
+        item.filename,
+        this.logSequenceNumber,
+      );
 
-      await this.writeAheadLog.open();
-
-      console.log(this.logSequenceNumber); // TODO
+      await this.writeAheadLogWriter.open();
     } else {
       this.index = 1;
 
-      this.writeAheadLog = new WriteAheadLog(
+      this.writeAheadLogWriter = new WriteAheadLogWriter(
         this.directory,
         `${this.name}-${StringHelper.padding(`${this.index}`, 3)}.data`,
       );
 
-      await this.writeAheadLog.open();
+      await this.writeAheadLogWriter.open();
     }
   }
 
   protected async rotate(): Promise<void> {
-    if (!this.writeAheadLog) {
+    if (!this.writeAheadLogWriter) {
       return;
     }
 
-    const writeAheadLog: WriteAheadLog = this.writeAheadLog;
+    const writeAheadLogWriter: WriteAheadLogWriter = this.writeAheadLogWriter;
 
     this.index += 1;
 
-    this.writeAheadLog = new WriteAheadLog(
+    this.writeAheadLogWriter = new WriteAheadLogWriter(
       this.directory,
       `${this.name}-${StringHelper.padding(`${this.index}`, 3)}.data`,
       this.logSequenceNumber,
     );
 
-    await this.writeAheadLog.open();
+    await this.writeAheadLogWriter.open();
 
-    await writeAheadLog.close();
+    await writeAheadLogWriter.close();
   }
 
   public async write(data: any): Promise<number> {
-    if (!this.writeAheadLog) {
+    if (!this.writeAheadLogWriter) {
       return 0;
     }
 
-    if ((await this.writeAheadLog.size()) > this.maxWriteAheadLogSize) {
+    if ((await this.writeAheadLogWriter.size()) > this.maxWriteAheadLogSize) {
       await this.rotate();
     }
 
-    this.logSequenceNumber = await this.writeAheadLog.write(data);
+    this.logSequenceNumber = await this.writeAheadLogWriter.write(data);
 
     return this.logSequenceNumber;
   }

@@ -5,14 +5,13 @@ import * as protobufjs from 'protobufjs';
 import { StringHelper } from './string.helper';
 import { Mutex } from './mutex';
 import { FileHelper } from './file.helper';
-import { LogEntry } from './log-entry';
 
 const LogEntryProtoBufJs = new protobufjs.Type('LogEntry')
   .add(new protobufjs.Field('checksum', 1, 'string'))
   .add(new protobufjs.Field('data', 2, 'string'))
   .add(new protobufjs.Field('logSequenceNumber', 3, 'string'));
 
-export class WriteAheadLog {
+export class WriteAheadLogWriter {
   protected readonly buffer: Buffer;
 
   protected bufferOffset: number = 0;
@@ -21,7 +20,7 @@ export class WriteAheadLog {
 
   protected mutex: Mutex = new Mutex();
 
-  protected offset: number = 0;
+  protected fileDescriptorOffset: number = 0;
 
   constructor(
     protected directory: string,
@@ -59,10 +58,10 @@ export class WriteAheadLog {
 
     this.bufferOffset = 0;
 
-    this.offset += await FileHelper.write(
+    this.fileDescriptorOffset += await FileHelper.write(
       this.fileDescriptor,
       buffer,
-      this.offset,
+      this.fileDescriptorOffset,
     );
 
     await this.mutex.release();
@@ -76,56 +75,9 @@ export class WriteAheadLog {
       'a+',
     );
 
-    this.offset = await this.size();
+    this.fileDescriptorOffset = await this.size();
 
     await this.mutex.release();
-  }
-
-  public async read(): Promise<Array<LogEntry>> {
-    const fileDescriptor: number = fs.openSync(
-      path.join(this.directory, this.filename),
-      'r',
-    );
-
-    let offset: number = 0;
-
-    const size: number = fs.statSync(
-      path.join(this.directory, this.filename),
-    ).size;
-
-    const logEntries: Array<LogEntry> = [];
-
-    while (offset < size) {
-      const bufferLength: Buffer = Buffer.alloc(10);
-
-      fs.readSync(fileDescriptor, bufferLength, 0, bufferLength.length, offset);
-
-      const bufferLogEntry: Buffer = Buffer.alloc(
-        parseInt(bufferLength.toString()),
-      );
-
-      fs.readSync(
-        fileDescriptor,
-        bufferLogEntry,
-        0,
-        bufferLogEntry.length,
-        offset + bufferLength.length,
-      );
-
-      const logEntry: LogEntry = LogEntryProtoBufJs.decode(
-        bufferLogEntry,
-      ).toJSON() as LogEntry;
-
-      logEntries.push(logEntry);
-
-      offset += bufferLength.length + bufferLogEntry.length;
-    }
-
-    return logEntries;
-  }
-
-  public setLogSequenceNumber(logSequenceNumber: number): void {
-    this.logSequenceNumber = logSequenceNumber;
   }
 
   public async size(): Promise<number> {
