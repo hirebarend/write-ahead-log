@@ -41,7 +41,7 @@ export class WriteAheadLogWriter {
     fs.closeSync(this.fileDescriptor);
   }
 
-  public async flush(): Promise<void> {
+  protected async flush(): Promise<void> {
     if (!this.fileDescriptor) {
       return;
     }

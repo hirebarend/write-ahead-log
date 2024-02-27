@@ -14,7 +14,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/hirebarend/order-book"
+    "url": "https://github.com/hirebarend/write-ahead-log"
   },
   "author": "Barend Erasmus",
   "license": "MIT",
