@@ -3,5 +3,5 @@ export type LogEntry = {
 
   data: any;
 
-  logSequenceNumber: string;
+  logSequenceNumber: number;
 };

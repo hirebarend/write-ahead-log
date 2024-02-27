@@ -37,6 +37,10 @@ export class WriteAheadLogReader {
   }
 
   public async read(): Promise<Array<LogEntry>> {
+    if (!fs.existsSync(path.join(this.directory, this.filename))) {
+      return [];
+    }
+
     const fileDescriptor: number = fs.openSync(
       path.join(this.directory, this.filename),
       'r',
@@ -67,11 +71,25 @@ export class WriteAheadLogReader {
         offset + bufferLength.length,
       );
 
-      const logEntry: LogEntry = LogEntryProtoBufJs.decode(
-        bufferLogEntry,
-      ).toJSON() as LogEntry;
+      const logEntry: {
+        checksum: string;
 
-      logEntries.push(logEntry);
+        data: any;
+
+        logSequenceNumber: string;
+      } = LogEntryProtoBufJs.decode(bufferLogEntry).toJSON() as {
+        checksum: string;
+
+        data: any;
+
+        logSequenceNumber: string;
+      };
+
+      logEntries.push({
+        checksum: logEntry.checksum,
+        data: logEntry.data,
+        logSequenceNumber: parseInt(logEntry.logSequenceNumber),
+      });
 
       offset += bufferLength.length + bufferLogEntry.length;
     }

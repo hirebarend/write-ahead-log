@@ -26,7 +26,7 @@ export class WriteAheadLogWriter {
     protected directory: string,
     protected filename: string,
     protected logSequenceNumber: number = 0,
-    protected bufferSize: number = 10 * 1024, // 10 kilobytes
+    protected bufferSize: number = 128 * 1024, // 10 kilobytes
   ) {
     this.buffer = Buffer.alloc(this.bufferSize);
   }
@@ -47,6 +47,10 @@ export class WriteAheadLogWriter {
     }
 
     if (!this.buffer) {
+      return;
+    }
+
+    if (!this.bufferOffset) {
       return;
     }
 

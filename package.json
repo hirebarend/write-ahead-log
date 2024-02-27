@@ -8,6 +8,7 @@
     "build": "tsc",
     "lint": "prettier --write --config prettier.config.js --list-different src/**/*.ts",
     "start": "npm run build && node --max-old-space-size=4096 dist/test.js",
+    "start-example": "npm run build && node --max-old-space-size=4096 dist/example/main.js",
     "debug": "npm run build && node --inspect dist/main.js",
     "test": "npm run build && node dist/test.js"
   },

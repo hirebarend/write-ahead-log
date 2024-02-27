@@ -1,7 +1,7 @@
 import { faker } from '@faker-js/faker';
 import * as uuid from 'uuid';
 import { benchmark } from './benchmark';
-import { WriteAheadLogManager } from './write-ahead-log-manager';
+import { WriteAheadLogWriter } from './write-ahead-log-writer';
 
 (async () => {
   const n: number = 1_000_000;
@@ -22,19 +22,18 @@ import { WriteAheadLogManager } from './write-ahead-log-manager';
     });
   }
 
-  const writeAheadLogManager: WriteAheadLogManager = new WriteAheadLogManager(
+  const writeAheadLogWriter: WriteAheadLogWriter = new WriteAheadLogWriter(
     'data',
-    'test',
-    128 * 1024 * 1024,
+    'test-001.data',
   );
 
-  await writeAheadLogManager.open();
+  await writeAheadLogWriter.open();
 
   await benchmark('append', n, async () => {
     for (const x of data) {
-      await writeAheadLogManager.write(x);
+      await writeAheadLogWriter.write(x);
     }
 
-    await writeAheadLogManager.close();
+    await writeAheadLogWriter.close();
   });
 })();
