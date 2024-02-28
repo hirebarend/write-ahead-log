@@ -2,6 +2,7 @@ import { faker } from '@faker-js/faker';
 import * as uuid from 'uuid';
 import { benchmark } from './benchmark';
 import { WriteAheadLogWriter } from './write-ahead-log-writer';
+import { WriteAheadLogReader } from './write-ahead-log-reader';
 
 (async () => {
   const n: number = 1_000_000;
@@ -29,11 +30,20 @@ import { WriteAheadLogWriter } from './write-ahead-log-writer';
 
   await writeAheadLogWriter.open();
 
-  await benchmark('append', n, async () => {
+  await benchmark('write', n, async () => {
     for (const x of data) {
       await writeAheadLogWriter.write(x);
     }
 
     await writeAheadLogWriter.close();
+  });
+
+  const writeAheadLogReader: WriteAheadLogReader = new WriteAheadLogReader(
+    'data',
+    'test-001.data',
+  );
+
+  await benchmark('read', n, async () => {
+    const logEntries = await writeAheadLogReader.read();
   });
 })();
