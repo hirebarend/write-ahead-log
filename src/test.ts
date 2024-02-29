@@ -1,6 +1,6 @@
 import { faker } from '@faker-js/faker';
+import { benchmark } from 'high-performance-utils';
 import * as uuid from 'uuid';
-import { benchmark } from './benchmark';
 import { WriteAheadLogWriter } from './write-ahead-log-writer';
 import { WriteAheadLogReader } from './write-ahead-log-reader';
 

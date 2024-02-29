@@ -2,9 +2,7 @@ import * as crc32 from 'crc-32';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as protobufjs from 'protobufjs';
-import { StringHelper } from './string.helper';
-import { Mutex } from './mutex';
-import { FileHelper } from './file.helper';
+import { FileHelper, Mutex, StringHelper } from 'high-performance-utils';
 
 const LogEntryProtoBufJs = new protobufjs.Type('LogEntry')
   .add(new protobufjs.Field('checksum', 1, 'string'))

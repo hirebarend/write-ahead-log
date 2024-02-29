@@ -1,7 +1,7 @@
 import { faker } from '@faker-js/faker';
 import * as fs from 'fs';
 import * as uuid from 'uuid';
-import { benchmark } from '../benchmark';
+import { benchmark } from 'high-performance-utils';
 import { WriteAheadLogReader } from '../write-ahead-log-reader';
 import { WriteAheadLogWriter } from '../write-ahead-log-writer';
 import { NonBufferedWriteAheadLogWriter } from '../non-buffered-write-ahead-log-writer';
